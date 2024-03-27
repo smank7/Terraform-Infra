@@ -58,3 +58,82 @@ variable "app_port" {
   description = "The port of the VM instance"
   type = string
 }
+variable "host" {
+  description = "The database port to allow through the firewall"
+  type        = string
+}
+
+variable "instance_name" {
+  description = "The name of the instance"
+  type        = string
+}
+
+variable "mysql_version" {
+  description = "The version of MySQL to install"
+  type        = string
+}
+
+variable "db_tier" {
+  description = "The machine type for the database"
+  type        = string
+}
+
+variable "sql_disk_type"{ 
+  description = "The disk type for the database"
+  type        = string
+}
+
+variable "sql_disk_size_gb" {
+  description = "The size of the database disk in GB"
+  type        = number
+}
+
+variable "db_name" {
+  description = "The name of the database"
+  type        = string
+}
+
+variable "db_user" {
+  description = "The database user"
+  type        = string
+}
+
+variable "password_length" {
+  description = "The length of the password"
+  type        = number
+}
+
+variable "private_ip_name" {
+  description = "The name of the private IP"
+  type        = string
+}
+
+variable "private_ip_purpose" {
+  description = "The purpose of the private IP"
+  type        = string
+}
+
+variable "private_ip_address_type" {
+  description = "The type of the private IP address"
+  type        = string
+}
+
+variable "db_port"{ 
+  description = "The port for the database"
+  type        = string
+}
+
+variable "override_special_characters"{ 
+  description = "Override special characters"
+  type        = string
+}
+
+variable "serviceaccountid"{
+  description = "The service account id"
+  type        = string
+}
+
+variable "serviceaccountname"{
+  description = "The service account name"
+  type        = string
+}
