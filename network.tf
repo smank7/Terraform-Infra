@@ -226,6 +226,100 @@ resource "google_project_iam_binding" "monitoring_metric_writer" {
   ]
 }
 
+//assign7
+
+resource "google_pubsub_topic" "verify_email" {  
+  name="verify_email"
+  message_retention_duration = "604800s"
+}
+
+resource "google_pubsub_subscription" "verify_email_subscription" {  
+  name = "verify_email_subscription"
+  topic = google_pubsub_topic.verify_email.name
+  ack_deadline_seconds = 20
+  push_config {
+    push_endpoint = google_cloudfunctions2_function.verify_email_function.url
+  }
+}
+
+resource "google_vpc_access_connector" "vpc_connector" {  
+  name = "new-webapp-vpc-connector" 
+  network = google_compute_network.vpc.self_link
+  region = var.region
+  ip_cidr_range = "10.2.0.0/28"
+}
+
+resource "google_storage_bucket" "serverless-bucket" { 
+  name= "saaaaa1"
+  location = "US"
+}
+
+resource "google_storage_bucket_object" "serverless-archive" {
+  name = "serverless.zip"
+  bucket = google_storage_bucket.serverless-bucket.name
+  source = "./serverless.zip"
+}
+
+resource "google_cloudfunctions2_function" "verify_email_function" { 
+  depends_on = [ google_vpc_access_connector.vpc_connector ]
+  name="verify-email-function"
+  description = "Verification of Email"
+  location = "us-east4"
+
+  build_config {
+    runtime = "nodejs20"
+    entry_point = "sendVerificationEmail"
+    source {
+      storage_source {
+        bucket = google_storage_bucket.serverless-bucket.name
+        object = google_storage_bucket_object.serverless-archive.name
+      }
+    }
+  }
+
+  service_config {
+    max_instance_count = 3
+    min_instance_count = 2
+    available_memory = "256Mi"
+    available_cpu = 1
+    timeout_seconds = 540
+    max_instance_request_concurrency = 1
+    environment_variables = {
+      DB_HOST= google_sql_database_instance.cloudsql_instance.private_ip_address
+      DB_USER= "webapp"
+      DB_PASS= random_password.password.result
+      DB_NAME="webapp"
+      DB_PORT=3306
+
+    }
+    ingress_settings =  "ALLOW_INTERNAL_ONLY"
+    all_traffic_on_latest_revision = true
+    vpc_connector = google_vpc_access_connector.vpc_connector.name
+    vpc_connector_egress_settings = "PRIVATE_RANGES_ONLY"
+  }
+  event_trigger {
+    trigger_region = "us-east4"
+    event_type = "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsub_topic = google_pubsub_topic.verify_email.id
+    service_account_email = google_service_account.service_account.email
+    retry_policy = "RETRY_POLICY_RETRY"
+  }
+  
+}
+
+resource "google_project_iam_binding" "cloud_run_invoker" {  
+  project = var.project_id
+  role="roles/run.invoker"
+  members = ["serviceAccount:${google_service_account.service_account.email}"]
+  
+}
+
+resource "google_project_iam_binding" "pubsub_publisher" {     
+  project = var.project_id
+  role = "roles/pubsub.publisher"
+  members = ["serviceAccount:${google_service_account.service_account.email}"]
+}
+
 
 
 
