@@ -519,7 +519,7 @@ resource "google_compute_global_forwarding_rule" "lb_forwarding_rule" {
   target     = google_compute_target_https_proxy.lb_https_proxy.self_link
   ip_address    = google_compute_global_address.lb_ip.address
 
-  // add ip address
+  // add ip addresses
 }
 
 resource "google_project_iam_member" "lb_admin" {
