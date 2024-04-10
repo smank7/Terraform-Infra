@@ -320,6 +320,245 @@ resource "google_project_iam_binding" "pubsub_publisher" {
   members = ["serviceAccount:${google_service_account.service_account.email}"]
 }
 
+//assign8
+
+resource "google_compute_region_instance_template" "web_instance_template" {
+  name                    = "web-instance-template"
+  machine_type            = "e2-medium"
+  region                  = var.region
+  tags         = ["webapp-lb-target", "ssh-access","application-instance"]
+  
+  disk {
+    source_image = var.vm_image
+     auto_delete  = true
+     boot         = true
+  }
+
+  service_account {
+    email  = google_service_account.service_account.email
+    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+     }
+
+  network_interface {
+    network = google_compute_network.vpc.self_link
+    subnetwork = google_compute_subnetwork.webapp_subnet.self_link
+  }
+
+  metadata = {
+  startup-script = <<-SCRIPT
+      #!/bin/bash
+
+
+      # Write to dotenv file
+      sudo cat <<EOF > /opt/.env
+      DB_HOST=${google_sql_database_instance.cloudsql_instance.private_ip_address}
+      DB_DATABASE=${google_sql_database.webapp_database.name}
+      DB_USER=${google_sql_user.webapp_user.name}
+      DB_PASSWORD=${random_password.password.result}
+      DB_PORT=${var.db_port}
+      EOF
+
+      # Print the contents of the .env file for debugging
+      sudo cat /opt/.env
+
+      # Change ownership of the file
+      sudo chown csye6225:csye6225 /opt/.env
+  SCRIPT
+}
+}
+
+resource "google_compute_region_instance_group_manager" "igm" {
+  name              = "my-igm-new-cloud"
+  region = var.region
+  //zone = var.zone
+  base_instance_name = "web-instance"
+
+
+  version {
+    instance_template = google_compute_region_instance_template.web_instance_template.id
+    name = "primary"
+  }
+ 
+  target_size = 1
+
+  named_port {
+
+    name = "http"
+
+    //This name given to the 'named_port' in the MIG must match the 'port_name' in the 'google_compute_backend_service'
+
+    port = "3000"
+
+  }
+   update_policy {
+
+
+
+    type = "PROACTIVE"
+
+    //MIG 'proactively' executes actions in order to bring instances to their target template version
+
+
+
+    instance_redistribution_type = "PROACTIVE"
+
+    //MIG attempts to maintain an even distribution of VM instances across all the zones in the region
+
+
+
+    minimal_action = "REPLACE"
+
+
+    most_disruptive_allowed_action = "REPLACE"
+    max_surge_fixed = 3
+
+  }
+   auto_healing_policies {
+
+    health_check      = google_compute_health_check.web_health_check.self_link
+
+    initial_delay_sec = 300
+
+  }
+
+}
+
+
+
+resource "google_compute_region_autoscaler" "web_autoscaler" {
+  project = var.project_id
+  name   = "web-autoscaler"
+  region = var.region
+  target = google_compute_region_instance_group_manager.igm.id
+
+  autoscaling_policy {
+    min_replicas = 1
+    max_replicas = 3
+    
+    cpu_utilization {
+      target = 0.05
+    }
+  }
+
+  depends_on = [google_compute_region_instance_group_manager.igm]
+}
+
+
+resource "google_compute_firewall" "lb_firewall" {
+  name    = "lb-firewall"
+  network = google_compute_network.vpc.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80", "443"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]  # Adjust as necessary, should be load balancer IP range
+  target_tags   = ["webapp-lb-target","application-instance"]
+}
+
+resource "google_compute_global_address" "lb_ip" {
+  name          = "lb-ip"
+  ip_version    = "IPV4"
+  
+}
+
+resource "google_compute_managed_ssl_certificate" "lb_default" {
+  project     = var.project_id 
+  name     = "cloudcsye-ssl-cert"
+
+  managed {
+    domains = ["santoshicloud.me"]
+  }
+}
+
+# Define the HTTPS health check for your backend service
+resource "google_compute_health_check" "web_health_check" {
+  name               = "web-health-check"
+  check_interval_sec = 10
+  timeout_sec        = 5
+
+  http_health_check {
+    request_path = "/healthz"
+    port = 3000
+  }
+}
+
+# Define the backend service
+resource "google_compute_backend_service" "backend_service" {
+  name             = "backend-service"
+  protocol         = "HTTP"
+  port_name        = "http"
+  timeout_sec      = 10
+  enable_cdn       = false
+  health_checks    = [google_compute_health_check.web_health_check.id]
+
+ backend {
+    group = google_compute_region_instance_group_manager.igm.instance_group
+  }
+}
+
+# Define the URL map
+resource "google_compute_url_map" "url_map" {
+  name            = "url-maps"
+  default_service = google_compute_backend_service.backend_service.self_link
+}
+
+# Define the target HTTPS proxy
+resource "google_compute_target_https_proxy" "lb_https_proxy" {
+  name             = "lb-https-proxy"
+  url_map          = google_compute_url_map.url_map.self_link
+  ssl_certificates = [google_compute_managed_ssl_certificate.lb_default.self_link]
+}
+
+# Define the global forwarding rule
+resource "google_compute_global_forwarding_rule" "lb_forwarding_rule" {
+  name       = "lb-forwarding-rule"
+  ip_protocol = "TCP"
+  port_range = 443
+  target     = google_compute_target_https_proxy.lb_https_proxy.self_link
+  ip_address    = google_compute_global_address.lb_ip.address
+
+  // add ip address
+}
+
+resource "google_project_iam_member" "lb_admin" {
+  project = var.project_id
+  role    = "roles/compute.loadBalancerAdmin"
+  member = "serviceAccount:${google_service_account.service_account.email}"
+}
+
+
+resource "google_project_iam_member" "dns_admin" {
+  project = var.project_id
+  role    = "roles/dns.admin"
+  member = "serviceAccount:${google_service_account.service_account.email}"
+  
+}
+
+
+resource "google_dns_record_set" "my_dns_record" {
+  name    = data.google_dns_managed_zone.my_dns_zone.dns_name
+  type    = "A"
+  ttl     = 300
+  managed_zone =  data.google_dns_managed_zone.my_dns_zone.name
+  
+  rrdatas = [
+   google_compute_global_address.lb_ip.address
+  ]
+}
+
+data "google_iam_policy" "admin" {
+  binding {
+    role = "roles/viewer"
+
+    members = [
+      "serviceAccount:${google_service_account.service_account.email}",
+    ]
+  }
+}
+
+
 
 
 
