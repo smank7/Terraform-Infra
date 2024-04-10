@@ -134,59 +134,59 @@ resource "random_password" "password" {
 
 }
 
-resource "google_compute_instance" "vm_instance" {
-  name         = var.vm_name  
-  zone         = var.vm_zone
-  machine_type = var.vm_machine_type
+# resource "google_compute_instance" "vm_instance" {
+#   name         = var.vm_name  
+#   zone         = var.vm_zone
+#   machine_type = var.vm_machine_type
 
-  boot_disk {
-    initialize_params {
-      image = var.vm_image
-      type  = var.vm_disk_type
-      size  = var.vm_disk_size_gb
-    }
-  }
+#   boot_disk {
+#     initialize_params {
+#       image = var.vm_image
+#       type  = var.vm_disk_type
+#       size  = var.vm_disk_size_gb
+#     }
+#   }
 
-  network_interface {
-    network    = google_compute_network.vpc.id
-    subnetwork = google_compute_subnetwork.webapp_subnet.id
+#   network_interface {
+#     network    = google_compute_network.vpc.id
+#     subnetwork = google_compute_subnetwork.webapp_subnet.id
 
-    access_config {
-    }
-  }
-metadata = {
-  startup-script = <<-SCRIPT
-      #!/bin/bash
+#     access_config {
+#     }
+#   }
+# metadata = {
+#   startup-script = <<-SCRIPT
+#       #!/bin/bash
 
 
-      # Write to dotenv file
-      sudo cat <<EOF > /opt/.env
-      DB_HOST=${google_sql_database_instance.cloudsql_instance.private_ip_address}
-      DB_DATABASE=${google_sql_database.webapp_database.name}
-      DB_USER=${google_sql_user.webapp_user.name}
-      DB_PASSWORD=${random_password.password.result}
-      DB_PORT=${var.db_port}
-      EOF
+#       # Write to dotenv file
+#       sudo cat <<EOF > /opt/.env
+#       DB_HOST=${google_sql_database_instance.cloudsql_instance.private_ip_address}
+#       DB_DATABASE=${google_sql_database.webapp_database.name}
+#       DB_USER=${google_sql_user.webapp_user.name}
+#       DB_PASSWORD=${random_password.password.result}
+#       DB_PORT=${var.db_port}
+#       EOF
 
-      # Print the contents of the .env file for debugging
-      sudo cat /opt/.env
+#       # Print the contents of the .env file for debugging
+#       sudo cat /opt/.env
 
-      # Change ownership of the file
-      sudo chown csye6225:csye6225 /opt/.env
-  SCRIPT
-}
+#       # Change ownership of the file
+#       sudo chown csye6225:csye6225 /opt/.env
+#   SCRIPT
+# }
 
-# depends_on = [
-#   google_sql_database_instance.cloudsql_instance,
-#   google_sql_database.webapp_database,
-#   google_sql_user.webapp_user,
-#   random_password.password,
-# ]
-service_account{
-    email= google_service_account.service_account.email
-    scopes= ["cloud-platform"]
-  }
-}
+# # depends_on = [
+# #   google_sql_database_instance.cloudsql_instance,
+# #   google_sql_database.webapp_database,
+# #   google_sql_user.webapp_user,
+# #   random_password.password,
+# # ]
+# service_account{
+#     email= google_service_account.service_account.email
+#     scopes= ["cloud-platform"]
+#   }
+# }
 
 
 //assignment 6
@@ -195,13 +195,13 @@ data "google_dns_managed_zone" "my_dns_zone" {
 }
 
 # Define the DNS record for your VM instance
-resource "google_dns_record_set" "my_dns_record" {
-  name    = data.google_dns_managed_zone.my_dns_zone.dns_name
-  type    = "A"
-  ttl     = 300
-  managed_zone =  data.google_dns_managed_zone.my_dns_zone.name
-  rrdatas = [google_compute_instance.vm_instance.network_interface[0].access_config[0].nat_ip]
-}
+# resource "google_dns_record_set" "my_dns_record" {
+#   name    = data.google_dns_managed_zone.my_dns_zone.dns_name
+#   type    = "A"
+#   ttl     = 300
+#   managed_zone =  data.google_dns_managed_zone.my_dns_zone.name
+#   rrdatas = [google_compute_instance.vm_instance.network_interface[0].access_config[0].nat_ip]
+# }
 
 resource "google_service_account" "service_account" {
   account_id   = var.serviceaccountid
