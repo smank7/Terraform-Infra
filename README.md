@@ -12,39 +12,18 @@ Ensure you have the **gcloud** command-line tool installed and configured with t
 
 #### 2. Install and Set Up Terraform  
 
-To set up Terraform on Windows using Chocolatey:  
-1. **Install Chocolatey** (if not already installed):  
-   - Open a PowerShell prompt with administrative privileges and run:  
-     ```powershell  
-     Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))  
-     ```  
+1. **Install Terraform**:  
+   - Download and install Terraform from the official [Terraform website](https://www.terraform.io/downloads).  
+   - Follow the installation instructions for your operating system.  
 
-2. **Install Terraform using Chocolatey**:  
-   - Run the following command to install Terraform:  
-     ```powershell  
-     choco install terraform -y  
-     ```  
-
-3. **Verify Terraform Installation**:  
-   - Open a new PowerShell window and check the installation:  
-     ```powershell  
+2. **Verify Terraform Installation**:  
+   - Open a terminal and check the installation:  
+     ```bash  
      terraform version  
      ```  
 
-4. **Update Terraform (if needed)**:  
-   - Update Terraform using:  
-     ```powershell  
-     choco update terraform -y  
-     ```  
-
-5. **Check Versions**:  
-   - Check the versions of Terraform and Chocolatey:  
-     ```powershell  
-     choco --version  
-     terraform --version  
-     ```  
-
----
+3. **Update Terraform** (if needed):  
+   - Check for updates and follow the official installation guide to install the latest version.  
 
 ### Terraform Configuration Files  
 
@@ -52,7 +31,22 @@ To set up Terraform on Windows using Chocolatey:
 - **`variables.tf`**: File for declaring variables used in the configuration.  
 - **`terraform.tfvars`**: Stores variable values (Note: Do not commit this file to version control).  
 
----
+### Testing with Jest  
+
+This repository includes Jest test cases for validating the functionality of the Terraform configuration.  
+
+1. **Install Jest**:  
+   - Ensure Node.js is installed on your system.  
+   - Install Jest as a development dependency:  
+     ```bash  
+     npm install jest --save-dev  
+     ```  
+
+2. **Run Tests**:  
+   - Execute the Jest tests to validate the configuration:  
+     ```bash  
+     npm test  
+     ```  
 
 ### Commands to Run Terraform Configuration Files  
 
